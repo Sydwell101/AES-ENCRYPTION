@@ -1,5 +1,7 @@
-import hashlib
+import base64
 from Crypto.Cipher import AES
+from Crypto import Random
+from Crypto.Protocol.KDF import PBKDF2
 
 
 def pad(text):
@@ -12,14 +14,19 @@ def pad(text):
     return padded
 
 
+def get_private_key(password):
+    salt = b"this is a salt"
+    kdf = PBKDF2(password, salt, 64, 1000)
+    key = kdf[:32]
+    return key
+
+
 def encrypt_text(text, key):
-    key = hashlib.sha256(key.encode()).digest()
-    pad(text)
-
-    cipher = AES.new(key, AES.MODE_CBC)
-    cipher_text = cipher.encrypt(text)
-
-    return cipher_text
+    private_key = get_private_key(key)
+    text = pad(text)
+    iv = Random.new().read(AES.block_size)
+    cipher = AES.new(private_key, AES.MODE_CBC, iv)
+    return base64.b64encode(iv + cipher.encrypt(text))
 
 
 def encrypt_file(file, key):
